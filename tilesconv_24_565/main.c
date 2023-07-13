@@ -62,6 +62,22 @@ uint32_t getvalue(uint32_t* b, int n) {
 
 int main(int argc, char** argv) {
 
+  uint8_t b[100];
+  uint8_t objname[100];
+  uint8_t bmpHeader[BMP_size];
+  uint32_t bmp_width;
+  uint32_t bmp_height;
+  uint32_t bmp_datasize;
+  uint32_t c;
+  uint32_t x, y;
+  uint32_t padding;
+  uint32_t tiles_num;
+  uint32_t tiles_width;
+  uint32_t tiles_height;
+  uint16_t* filebuffer;
+  uint32_t datasize;
+  uint32_t wr_count = 0;
+  
   if (argc != 6) {
     printf("Please state one input and one output file followed by tile width and tile height and tile object name.\n");
     return -1;
@@ -72,25 +88,8 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  //WA for Dev C++ bug: read not working properly
-  //int f_in = open(argv[1], O_RDONLY);
   FILE* f_in = fopen(argv[1], "rb");
   FILE* f_out = fopen(argv[2], "w");
-
-  uint8_t b[100];
-  uint8_t objname[100];
-  uint8_t bmpHeader[BMP_size];
-  uint32_t bmp_width;
-  uint32_t bmp_height;
-  uint32_t c;
-  uint32_t x, y;
-  uint32_t padding;
-  uint32_t tiles_num;
-  uint32_t tiles_width;
-  uint32_t tiles_height;
-  uint16_t* filebuffer;
-  uint32_t filesize;
-  uint32_t wr_count = 0;
 
   sscanf(argv[3], "%d", &tiles_width);
   sscanf(argv[4], "%d", &tiles_height);
@@ -105,17 +104,21 @@ int main(int argc, char** argv) {
 
   bmp_width = getvalue((uint32_t*)&bmpHeader[BMP_width], 4);
   bmp_height = getvalue((uint32_t*)&bmpHeader[BMP_height], 4);
-
+  bmp_datasize = getvalue((uint32_t*)&bmpHeader[BMP_datasize], 4);
+  
   //      b[h] = fgetc(f_in);
   //    read(f_in, &b, getvalue((uint32_t*) &bmpHeader[BMP_ofsimgdata], 4) - 54);
 
-  padding = (getvalue((uint32_t*)&bmpHeader[BMP_datasize], 4) - bmp_width * bmp_height * 3) / bmp_height;
+  if (bmp_datasize)
+    padding = (bmp_datasize - bmp_width * bmp_height * 3) / bmp_height;
+  else
+    padding = 0;
 
-  filesize = bmp_width * bmp_height * 3;
+  datasize = bmp_width * bmp_height * 3;
 
   tiles_num = bmp_width * bmp_height / (tiles_width * tiles_height);
 
-  printf("data size is:     %d bytes\n", filesize);
+  printf("data size is:     %d bytes\n", datasize);
   printf("image width is:   %d\n", bmp_width);
   printf("image height is:  %d\n", bmp_height);
   printf("image padding is: %d\n", padding);
@@ -124,16 +127,18 @@ int main(int argc, char** argv) {
   printf("# of tiles:       %d\n", tiles_num);
 
   // make file buffer
-  filebuffer = (uint16_t*)malloc(filesize * 2);
+  filebuffer = (uint16_t*)malloc(datasize * 2);
 
   for (uint32_t y = 0; y < bmp_height; y++) {
     for (uint32_t x = 0; x < bmp_width; x++) {
       fread(b, 1, 3, f_in);
 
       c = RGBColor565(b[2], b[1], b[0]);
+      
+      uint32_t y_inv = bmp_height - y - 1;
 
-      filebuffer[((x / tiles_width) + (y / tiles_height) * (bmp_width / tiles_width)) * (tiles_width * tiles_height) +  // ofs to tile
-                 (y % tiles_height) * tiles_width + x % tiles_width] = c;                                               // within tile
+      filebuffer[((x / tiles_width) + (y_inv / tiles_height) * (bmp_width / tiles_width)) * (tiles_width * tiles_height) +  // ofs to tile
+                 (y_inv % tiles_height) * tiles_width + x % tiles_width] = c;                                               // within tile
     }
     for (int h = 0; h < padding; h++)
       b[0] = fgetc(f_in);
@@ -142,7 +147,7 @@ int main(int argc, char** argv) {
   // write loop
   wr_count = 0;
 
-  fprintf(f_out, "const uint16_t %s_tile_image_raw[] PROGMEM = {\n ", objname);
+  fprintf(f_out, "const uint16_t %s_tile_image_data_raw[] PROGMEM = {\n ", objname);
 
   for (uint32_t n = 0; n < tiles_num * tiles_width * tiles_height; n++) {
     fprintf(f_out, " 0x%04x", filebuffer[n]);
@@ -175,14 +180,14 @@ int main(int argc, char** argv) {
   fprintf(f_out, "  16,  // bpp\n");
   fprintf(f_out, "  %d,  // width\n", bmp_width);
   fprintf(f_out, "  %d,  // height\n", bmp_height);
-  fprintf(f_out, "  (uint16_t*) tile_image_data_raw\n");
+  fprintf(f_out, "  (uint16_t*) %s_tile_image_data_raw\n", objname);
   fprintf(f_out, "};\n\n");
 
   fprintf(f_out, "tile_data_t %s = {\n", objname);
   fprintf(f_out, "  %d,  // tile width\n", tiles_width);
   fprintf(f_out, "  %d,  // tile height\n", tiles_height);
   fprintf(f_out, "  %d,  // # of tiles\n", tiles_num);
-  fprintf(f_out, "  &tile_image_data\n");
+  fprintf(f_out, "  &%s_tile_image_data\n", objname);
   fprintf(f_out, "};\n");
 
 

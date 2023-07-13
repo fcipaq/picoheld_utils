@@ -46,7 +46,7 @@ enum BMPHeader_e {
   BMP_planes = 26,       // # of planes, must be 1
   BMP_coldepth = 28,     // bpp 1, 4, 8 or 24
   BMP_compression = 30,  // 0 = none, 1 = RLE-8, 2 =RLE-4
-  BMP_filesize = 34,     // size of image data in bytes (incl. padding)
+  BMP_datasize = 34,     // size of image data in bytes (incl. padding)
   BMP_dpmeterx = 38,     // horiz. res. in pixel per meter (unreliable)
   BMP_dpmetery = 42,     // vert. res. in pixel per meter (unreliable)
   BMP_numcol = 46,       // # of colors or zero
@@ -67,6 +67,7 @@ int main(int argc, char** argv) {
   uint8_t bmpHeader[BMP_size];
   uint32_t bmp_width;
   uint32_t bmp_height;
+  uint32_t bmp_datasize;
   uint32_t c;
   uint32_t x, y;
   uint32_t numcol;
@@ -112,18 +113,24 @@ int main(int argc, char** argv) {
   bmp_width = getvalue((uint32_t*)&bmpHeader[BMP_width], 4);
   bmp_height = getvalue((uint32_t*)&bmpHeader[BMP_height], 4);
 
+  datasize = bmp_width * bmp_height * 3;
+
+  bmp_datasize = getvalue((uint32_t*)&bmpHeader[BMP_datasize], 4);
+
   //fread(b, 1, getvalue((uint32_t*) &bmpHeader[BMP_ofsimgdata], 4) - 54, f_in);
 
-  //padding = (getvalue((uint32_t*)&bmpHeader[BMP_filesize], 4) - bmp_width * bmp_height * 3) / bmp_height;
-  padding = 0;
-
-  datasize = bmp_width * bmp_height * 3;
+  if (bmp_datasize) 
+    padding = (bmp_datasize - bmp_width * bmp_height * 3) / bmp_height;
+  else
+    padding = 0;
 
   tiles_num = bmp_width * bmp_height / (tiles_width * tiles_height);
 
   printf("Found BMP header.\n");
   printf("image width is:   %d\n", bmp_width);
   printf("image height is:  %d\n", bmp_height);
+  printf("No. of tiles:     %d\n", tiles_num);
+  printf("data size is:     %d\n", getvalue((uint32_t*)&bmpHeader[BMP_datasize], 4));
   printf("No. of colors:    %d\n", numcol);
   printf("image padding is: %d\n", padding);
 
@@ -134,6 +141,7 @@ int main(int argc, char** argv) {
 
   for (uint32_t col_i = 0; col_i < numcol; col_i++) {
     fread(b, 1, 4, f_in);
+    
     //fprintf(f_out, "  RGBColor888_565(0x%02x, 0x%02x, 0x%02x)", b[0], b[1], b[2]);
     fprintf(f_out, "  0x%04x", RGBColor565(b[2], b[1], b[0]));
 
@@ -151,9 +159,11 @@ int main(int argc, char** argv) {
   for (uint32_t y = 0; y < bmp_height; y++) {
     for (uint32_t x = 0; x < bmp_width; x++) {
       c = fgetc(f_in);
+      
+      uint32_t y_inv = bmp_height - y - 1;
 
-      filebuffer[((x / tiles_width) + (y / tiles_height) * (bmp_width / tiles_width)) * (tiles_width * tiles_height) +  // ofs to tile
-                 (y % tiles_height) * tiles_width + x % tiles_width] = c;                                               // within tile
+      filebuffer[((x / tiles_width) + (y_inv / tiles_height) * (bmp_width / tiles_width)) * (tiles_width * tiles_height) +  // ofs to tile
+                 (y_inv % tiles_height) * tiles_width + x % tiles_width] = c;                                               // within tile
     }
     for (int h = 0; h < padding; h++)
       b[0] = fgetc(f_in);
@@ -162,7 +172,7 @@ int main(int argc, char** argv) {
   // write loop
   wr_count = 0;
 
-  fprintf(f_out, "const uint8_t %s_tile_image_raw[] PROGMEM = {\n ", objname);
+  fprintf(f_out, "const uint8_t %s_tile_image_data_raw[] PROGMEM = {\n ", objname);
 
   for (uint32_t n = 0; n < tiles_num * tiles_width * tiles_height; n++) {
     fprintf(f_out, " 0x%02x", filebuffer[n]);
@@ -195,14 +205,14 @@ int main(int argc, char** argv) {
   fprintf(f_out, "  8,  // bpp\n");
   fprintf(f_out, "  %d,  // width\n", bmp_width);
   fprintf(f_out, "  %d,  // height\n", bmp_height);
-  fprintf(f_out, "  (uint8_t*) tile_image_data_raw\n");
+  fprintf(f_out, "  (uint8_t*) %s_tile_image_data_raw\n", objname);
   fprintf(f_out, "};\n\n");
 
   fprintf(f_out, "tile_data_t %s = {\n", objname);
   fprintf(f_out, "  %d,  // tile width\n", tiles_width);
   fprintf(f_out, "  %d,  // tile height\n", tiles_height);
   fprintf(f_out, "  %d,  // # of tiles\n", tiles_num);
-  fprintf(f_out, "  &tile_image_data\n");
+  fprintf(f_out, "  &%s_tile_image_data\n", objname);
   fprintf(f_out, "};\n");
 
 

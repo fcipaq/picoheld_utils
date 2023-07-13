@@ -23,14 +23,6 @@
 #include <stdio.h>
 #include <string.h>
 
-uint16_t RGBColor565(uint8_t r, uint8_t g, uint8_t b) {
-  r = r >> 3;
-  g = g >> 2;
-  b = b >> 3;
-
-  return (r << 11) + (g << 5) + b;
-}
-
 int main(int argc, char** argv) {
 
   if (argc != 6) {
@@ -59,6 +51,7 @@ int main(int argc, char** argv) {
   map_width_ext = map_width * 2;
   map_height_ext = map_height * 2;
 
+#ifdef EXPAND_MAP
    // upper frame
   for (int i = 0; i < map_height / 2; i++) {
     for (int h = 0; h < map_width * 2; h++) {
@@ -68,13 +61,16 @@ int main(int argc, char** argv) {
     }
     fprintf(f_out, "\n");
   }
+#endif
 
   // actual image
   for (uint32_t y = 0; y < map_height; y++) {
 
+#ifdef EXPAND_MAP
     // left frame
     for (int h = 0; h < map_width / 2; h++)
       fprintf(f_out, "0xXX, ");
+#endif
 
     for (uint32_t x = 0; x < map_width; x++) {
       if (fread(b, 1, 1, f_in) != 1) {
@@ -84,13 +80,16 @@ int main(int argc, char** argv) {
       fprintf(f_out, "0x%02x, ", b[0]);
     }
 
+#ifdef EXPAND_MAP
     // right frame
     for (int h = 0; h < map_width / 2; h++)
       fprintf(f_out, "0xXX, ");
+#endif
 
     fprintf(f_out, "\n");
   }
 
+#ifdef EXPAND_MAP
   // lower frame
   for (int i = 0; i < map_height / 2; i++) {
     for (int h = 0; h < map_width * 2; h++) {
@@ -100,6 +99,7 @@ int main(int argc, char** argv) {
     }
     fprintf(f_out, "\n");
   }
+#endif
 
   fprintf(f_out, "};\n\n");
 
@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
   fprintf(f_out, "  (uint8_t*) %s_data\n", objname);
   fprintf(f_out, "};");
 
-  printf("done.");
+  printf("done.\n");
 
 bailout:
 

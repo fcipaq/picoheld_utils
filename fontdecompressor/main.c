@@ -36,34 +36,9 @@ int putc_super(FILE* f, uint8_t* buf, int len) {
 }
 
 int main(int argc, char** argv) {
-  printf("Welcome to font converter.\n\n");
-  printf("This converter decompresses .font files and converts them to.\n");
-  printf("be used with the Pico Pad library.\n\n");
-
-  if (argc < 3 || argc > 4) {
-    printf("Usage font_conv [input file] [output file] [ascii art: y].\n");
-    return -1;
-  }
-
-  if (sizeof(uint32_t) != 4 || sizeof(uint16_t) != 2) {
-    printf("Type size incorrect. Please recompile.\n");
-    return -1;
-  }
-
-  uint8_t show_glyphs = 0;  // shows glyphs in terminal windows as "ascii art"
-  if (argc == 4)
-    if (argv[3][0] == 'y' && argv[3][1] == 0) {
-      show_glyphs = 1;  // shows glyphs in terminal windows as "ascii art"
-    } else {
-      printf("3rd argument must be y or omitted.\n");
-      return -1;
-    }
-
-  FILE* f_in = fopen(argv[1], "rb");
-  FILE* f_out = fopen(argv[2], "w");
-
+  uint8_t objname[100];
   uint32_t bytes_read = 0;
-
+  
   uint16_t font_size = 0;
   uint8_t font_width = 0;
   uint8_t font_height = 0;
@@ -76,10 +51,39 @@ int main(int argc, char** argv) {
   uint8_t font_RLE_table[4];
 
   uint8_t hib, lob = 0;
+
+  printf("Welcome to font converter.\n\n");
+  printf("This converter decompresses .font files and converts them to.\n");
+  printf("be used with the Pico Hero library.\n\n");
+
+  if (argc < 4 || argc > 5) {
+    printf("Usage font_conv [input file] [output file] [ascii art: y].\n");
+    return -1;
+  }
+
+  if (sizeof(uint32_t) != 4 || sizeof(uint16_t) != 2) {
+    printf("Type size incorrect. Please recompile.\n");
+    return -1;
+  }
+
+  uint8_t show_glyphs = 0;  // shows glyphs in terminal windows as "ascii art"
+  if (argc == 5)
+    if (argv[4][0] == 'y' && argv[4][1] == 0) {
+      show_glyphs = 1;  // shows glyphs in terminal windows as "ascii art"
+    } else {
+      printf("4th argument must be y or omitted.\n");
+      return -1;
+    }
+
+  sscanf(argv[3], "%99s", objname);
+
+  FILE* f_in = fopen(argv[1], "rb");
+  FILE* f_out = fopen(argv[2], "w");
+
   bytes_read += fread(&hib, 1, 1, f_in);
 
   bytes_read += fread(&lob, 1, 1, f_in);
-  ;
+
   font_size = 256 * hib + lob;
 
   bytes_read += fread(&font_width, 1, 1, f_in);
@@ -266,7 +270,7 @@ int main(int argc, char** argv) {
   fprintf(f_out, "*/\n\n");
 
   // write target file
-  fprintf(f_out, "const uint8_t %s[] PROGMEM = {\n", argv[2]);
+  fprintf(f_out, "const uint8_t %s[] PROGMEM = {\n", objname);
 
   hib = font_size / 256;
   lob = font_size % 256;
