@@ -1,4 +1,6 @@
-# Overview^
+# Overview
+
+This is a set of tools useful to import graphics, tile maps and fonts to the *pplib*.
 
 Brief summary (for more details see the readme in the respective directories).
 

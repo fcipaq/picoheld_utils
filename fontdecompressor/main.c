@@ -1,5 +1,5 @@
 /*
- * Utilities for the pplib - a library for the Pico Hero handheld
+ * Utilities for the pplib - a library for the PicoPal handheld
  *
  * Copyright (C) 2023 Daniel Kammer (daniel.kammer@web.de)
  *
@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
 
   printf("Welcome to font converter.\n\n");
   printf("This converter decompresses .font files and converts them to.\n");
-  printf("be used with the Pico Hero library.\n\n");
+  printf("be used with the PicoPal library.\n\n");
 
   if (argc < 4 || argc > 5) {
     printf("Usage font_conv [input file] [output file] [ascii art: y].\n");

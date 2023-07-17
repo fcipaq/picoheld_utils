@@ -1,5 +1,5 @@
 /*
- * Utilities for the pplib - a library for the Pico Hero handheld
+ * Utilities for the pplib - a library for the PicoPal handheld
  *
  * Copyright (C) 2023 Daniel Kammer (daniel.kammer@web.de)
  *
